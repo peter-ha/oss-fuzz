@@ -15,15 +15,17 @@
 #
 ################################################################################
 
-set -e
-
 # build Qt
-./configure -opensource -confirm-license -platform linux-clang -developer-build -debug -no-xcb -no-eglfs -no-widgets -no-compile-examples -nomake examples -nomake tests -qt-pcre -qt-zlib -qt-freetype -qt-harfbuzz -qt-xcb -qt-libpng -qt-libjpeg -qt-sqlite -sanitize address QMAKE_CFLAGS+="$CFLAGS" QMAKE_CXXFLAGS+="$CXXFLAGS" QMAKE_LFLAGS="$CXXFLAGS"
-make -j$(nproc) module-qtbase # module-qtdeclarative etc. not built for now
+./configure -opensource -confirm-license -platform linux-clang -prefix $WORK/qt-install -static -debug -nomake examples -nomake tests -no-widgets -sanitize address QMAKE_CFLAGS+="$CFLAGS" QMAKE_CXXFLAGS+="$CXXFLAGS" QMAKE_LFLAGS+="$CXXFLAGS"
+
+# -k because we will get errors in qlalr (which we don't need)
+make -k -j$(nproc) module-qtbase || true # module-qtdeclarative etc. not built for now
+cd qtbase
+make install
 
 # build fuzzers
-cd ../qt-fuzzing/libFuzzer-testcases
-../../qt5/qtbase/bin/qmake "LIBS+=-lFuzzingEngine" QMAKE_CFLAGS+="$CFLAGS" QMAKE_CXXFLAGS+="$CXXFLAGS" QMAKE_LFLAGS="$CXXFLAGS"
+cd ../../qt-fuzzing/libFuzzer-testcases
+$WORK/qt-install/bin/qmake "LIBS+=-lFuzzingEngine" QMAKE_CFLAGS+="$CFLAGS" QMAKE_CXXFLAGS+="$CXXFLAGS" QMAKE_LFLAGS="$CXXFLAGS"
 make -j$(nproc)
 
 fuzzers=$(find . -executable -type f '!' -name run.sh)
